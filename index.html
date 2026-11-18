@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sorted</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: sticky header carrying the cost clock, a 10-step rail on the left, one working panel on the right; household items render as estate-sale hang tags */
+  --bg:#F2F5F1; --surface:#FFFFFF; --ink:#16221D; --muted:#56645D; --line:#D6DDD7; --soft:#E6EEE8;
+  --accent:#1E5B4F; --accent-ink:#FFFFFF; --brass:#A47522;
+  --p-specialist:#966610; --p-sell:#1B6F85; --p-estate:#3A784A; --p-donate:#3B5DAB; --p-discard:#6A716D; --p-keep:#A4416A;
+  --good:#2D7A4D; --warn:#9C6410; --bad:#AF3838;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101613; --surface:#18201C; --ink:#E4EBE6; --muted:#9AA79F; --line:#2C3731; --soft:#202D27;
+    --accent:#5DB39E; --accent-ink:#0D1915; --brass:#D5A54C;
+    --p-specialist:#D5A54C; --p-sell:#57B4CA; --p-estate:#78BF88; --p-donate:#93AAEC; --p-discard:#A4ABA7; --p-keep:#E28CAC;
+    --good:#6DC18F; --warn:#E1A64A; --bad:#EF7E7E; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101613; --surface:#18201C; --ink:#E4EBE6; --muted:#9AA79F; --line:#2C3731; --soft:#202D27;
+  --accent:#5DB39E; --accent-ink:#0D1915; --brass:#D5A54C;
+  --p-specialist:#D5A54C; --p-sell:#57B4CA; --p-estate:#78BF88; --p-donate:#93AAEC; --p-discard:#A4ABA7; --p-keep:#E28CAC;
+  --good:#6DC18F; --warn:#E1A64A; --bad:#EF7E7E; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance;letter-spacing:-0.01em}
+h1{font-size:2rem;font-weight:800}
+h2{font-size:1.25rem;font-weight:700}
+h3{font-size:1.02rem;font-weight:700}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* Header */
+header.top{position:sticky;top:0;z-index:10;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:-0.03em;display:flex;align-items:center;gap:8px}
+.brand svg{width:26px;height:26px}
+.estate-name{color:var(--muted);font-size:.95rem}
+.clock{margin-left:auto;display:flex;align-items:center;gap:10px;background:var(--soft);border-radius:999px;padding:6px 14px;font-size:.92rem}
+.clock b{font-family:var(--display);font-size:1.05rem}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.dot{animation:none}}
+.hdr-actions{display:flex;gap:8px}
+
+/* Shell */
+.shell{display:grid;grid-template-columns:250px 1fr;gap:24px;max-width:1240px;margin:0 auto;padding:24px 20px 60px}
+nav.rail{position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:2px}
+.rail button{display:flex;align-items:center;gap:10px;text-align:left;background:none;border:0;border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--muted)}
+.rail button:hover{background:var(--soft);color:var(--ink)}
+.rail button.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.rail .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.8rem;font-weight:700;border:1.5px solid var(--line)}
+.rail button.on .n{border-color:var(--accent);color:var(--accent)}
+.rail button.done .n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rail .sub{font-size:.75rem;display:block;color:var(--muted)}
+.rail .lbl{line-height:1.25;font-size:.95rem}
+.rail .group{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 10px 4px}
+main{min-width:0;display:flex;flex-direction:column;gap:18px}
+.stephead{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--brass);font-weight:700}
+.lede{color:var(--muted);max-width:68ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.card.flat{background:var(--soft);border-color:transparent}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.88rem;color:var(--muted)}
+label.f input,label.f select,label.f textarea{color:var(--ink)}
+input[type=text],input[type=number],input[type=date],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.money-in{position:relative}
+.money-in span{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.money-in input{padding-left:22px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:9px 14px;cursor:pointer;font-weight:700;font-size:.95rem;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{padding:5px 10px;font-size:.85rem;border-radius:8px}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:700;background:var(--soft);white-space:nowrap}
+.pill.good{color:var(--good)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)}
+.demo-badge{border:1px dashed var(--brass);color:var(--brass);background:none}
+.callout{border-left:0;background:var(--soft);border-radius:10px;padding:12px 14px;font-size:.92rem;display:flex;gap:10px}
+.callout b{color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:var(--soft);border-radius:12px;padding:12px 14px}
+.stat .v{font-family:var(--display);font-size:1.6rem;font-weight:800;line-height:1.1}
+.stat .k{font-size:.82rem;color:var(--muted)}
+.footer-nav{display:flex;justify-content:space-between;gap:10px;padding-top:6px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{text-align:left;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right}
+.tablewrap{overflow-x:auto}
+.meter{height:10px;background:var(--soft);border-radius:999px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:999px}
+
+/* Rooms */
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.room{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.room.covered{border-color:var(--accent)}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;min-height:44px}
+.thumbs img,.thumbs .ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px}
+.thumbs .ph{background:repeating-linear-gradient(45deg,var(--soft) 0 6px,transparent 6px 12px);border:1px dashed var(--line)}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* Pile chips and hang tags */
+.pilebar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.pilechip{border-radius:12px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px}
+.pilechip .sw{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px}
+.pilechip.on{box-shadow:0 0 0 2px var(--accent)}
+.pilechip .c{font-family:var(--display);font-size:1.3rem;font-weight:800}
+.tags{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.tagwrap{filter:drop-shadow(0 0 .7px var(--muted)) drop-shadow(0 2px 3px rgba(0,0,0,.06))}
+.tag{position:relative;background:var(--surface);padding:12px 14px 12px 34px;clip-path:polygon(18px 0,100% 0,100% 100%,18px 100%,0 calc(100% - 18px),0 18px);display:flex;flex-direction:column;gap:6px;min-height:150px}
+.tag::before{content:"";position:absolute;left:11px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--line)}
+.tag::after{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--pc,var(--line));opacity:.0}
+.tag .nm{font-weight:700;line-height:1.25}
+.tag .meta{font-size:.82rem;color:var(--muted)}
+.tag .val{font-family:var(--display);font-weight:800;font-size:1.15rem;color:var(--pc)}
+.tag .flag{font-size:.78rem;font-weight:700;color:var(--warn)}
+.tag .flag.papers{color:var(--p-keep)}
+.tag .tagfoot{margin-top:auto;display:flex;gap:6px;align-items:center}
+select.pilesel{border-color:var(--pc);color:var(--pc);font-weight:700;padding:5px 8px;font-size:.85rem}
+.p-specialist{--pc:var(--p-specialist)} .p-sell{--pc:var(--p-sell)} .p-estate{--pc:var(--p-estate)} .p-donate{--pc:var(--p-donate)} .p-discard{--pc:var(--p-discard)} .p-keep{--pc:var(--p-keep)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--pc);margin-right:6px;vertical-align:middle}
+
+/* Family */
+.seg{display:inline-flex;background:var(--soft);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:700;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.want{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.want:last-child{border-bottom:0}
+.want .grow{flex:1;min-width:0}
+.who{display:flex;gap:4px;flex-wrap:wrap}
+.toggle{border:1.5px solid var(--line);border-radius:999px;padding:4px 12px;background:none;cursor:pointer;font-weight:700;font-size:.85rem}
+.toggle.on{background:var(--p-keep);border-color:var(--p-keep);color:#fff}
+
+/* Plan */
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:stretch}
+.bignet{background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:6px}
+.bignet .v{font-family:var(--display);font-size:3rem;font-weight:800;line-height:1}
+.bignet .k{opacity:.85}
+.compare{display:flex;flex-direction:column;gap:10px;justify-content:center}
+.bar{display:grid;grid-template-columns:120px 1fr 84px;gap:10px;align-items:center;font-size:.9rem}
+.bar .track{height:14px;background:var(--soft);border-radius:999px;overflow:hidden}
+.bar .track i{display:block;height:100%;border-radius:999px}
+.locked{position:relative}
+.locked .blur{filter:blur(6px);user-select:none;pointer-events:none}
+.locked .lockover{position:absolute;inset:0;display:grid;place-items:center}
+.lockbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;max-width:420px;text-align:center;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.aitext{white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:14px;font-size:.95rem}
+
+/* Tracking */
+.feed{display:flex;flex-direction:column;gap:10px}
+.ev{display:grid;grid-template-columns:86px 1fr;gap:12px;font-size:.93rem}
+.ev .t{color:var(--muted);font-size:.8rem}
+.ev .body{background:var(--soft);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.ev.approval .body{background:none;border:1.5px solid var(--warn)}
+.task{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task .grow{flex:1;min-width:0}
+.stars{display:inline-flex;gap:2px}
+.stars button{background:none;border:0;cursor:pointer;font-size:1.25rem;line-height:1;color:var(--line);padding:2px}
+.stars button.on{color:var(--brass)}
+pre.report{white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:14px;font:0.88rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;max-height:420px;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.92rem;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:40;padding:16px}
+.modal{background:var(--surface);border-radius:14px;padding:20px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px}
+
+@media (max-width:900px){
+  header.top{position:static}
+  .shell{grid-template-columns:1fr}
+  nav.rail{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .rail .group,.rail .sub{display:none}
+  .rail button{flex:none}
+  .rail .lbl{white-space:nowrap}
+  .pilebar{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hero,.grid2{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .clock{margin-left:0}
+}
+@media (max-width:520px){
+  .fields,.grid3{grid-template-columns:1fr}
+  .pilebar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  h1{font-size:1.6rem}
+  .bar{grid-template-columns:90px 1fr 70px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 4h14l6 6v18H7z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.2" fill="currentColor"/><path d="M11 18h10M11 23h7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Sorted</div>
+  <div class="estate-name" id="estateName"></div>
+  <div class="clock" id="clock" title="What the empty house has cost since it became vacant"></div>
+  <div class="hdr-actions">
+    <button class="btn small" data-act="resetDemo" id="btnDemo">Load example</button>
+    <button class="btn small ghost" data-act="askBlank">Start blank</button>
+  </div>
+</header>
+<div class="shell">
+  <nav class="rail" id="rail" aria-label="Steps"></nav>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* ---------- Constants ---------- */
+const PILES = [
+  {id:'specialist', label:'Specialist / auction', hint:'Could be worth $1,000+ or needs an expert'},
+  {id:'sell',       label:'Sell online',          hint:'$300 to $1,000; a consignment seller lists and ships'},
+  {id:'estate',     label:'Estate sale',          hint:'Everyday items sold in bulk'},
+  {id:'donate',     label:'Donate',               hint:'Usable, little resale value; get a tax receipt'},
+  {id:'discard',    label:'Discard',              hint:'Broken, hazardous or costs money to remove'},
+  {id:'keep',       label:'Keep',                 hint:'Claimed by family, or papers and photos'}
+];
+const PL = Object.fromEntries(PILES.map(p => [p.id, p]));
+const ASSUME = { specialist:0.20, sell:0.30, estate:0.37, realize:0.70, haulBase:350, haulPer:120, planFee:100, coordFee:297 };
+const STEPS = [
+  {t:'Set up the estate', s:'House, deadlines, monthly costs', g:'Plan'},
+  {t:'Walk the house', s:'Photos of every room'},
+  {t:'AI inventory', s:'Every item sorted into piles'},
+  {t:'Family keep-list', s:'Who wants what'},
+  {t:'Your plan', s:'Channels, net and timeline'},
+  {t:'Get quotes', s:'3 vendors per channel', g:'Do'},
+  {t:'Book and schedule', s:'Order of work'},
+  {t:'Track progress', s:'Updates and approvals'},
+  {t:'Settle and close', s:'Payouts and final report', g:'Close'},
+  {t:'Rate vendors', s:'Scorecards'}
+];
+const COSTS = [['tax','Property tax'],['insurance','Vacant-home insurance'],['utilities','Utilities'],['upkeep','Lawn, pool and upkeep'],['hoa','HOA dues'],['mortgage','Mortgage'],['other','Security and other']];
+const DEFAULT_ROOMS = ['Living room','Kitchen','Dining room','Primary bedroom','Guest bedroom','Closets','Office and paperwork','Garage','Attic'];
+
+/* ---------- Example data ---------- */
+function demoItems(){
+  const L = [
+    ['Upright piano (Baldwin, 1970s)','Living room',1,-400,-150,'fair','removal','Offer it free to a church or school before paying to haul it'],
+    ['Mid-century walnut dresser','Primary bedroom',1,600,1100,'good',null,''],
+    ['Sterling silver flatware, service for 8','Dining room',1,900,1600,'good','review','Sold by weight at minimum; a specialist may do better'],
+    ['Signed oil painting, harbor scene','Living room',1,300,3000,'good','review','Wide range until an appraiser sees the signature'],
+    ['Jewelry box, mostly costume pieces','Primary bedroom',1,50,2000,'fair','review','Have a jeweler check it before any sale'],
+    ['Two vintage Schwinn bicycles','Garage',2,500,900,'fair',null,''],
+    ['Exercise bike','Garage',1,250,450,'good',null,''],
+    ['Singer Featherweight sewing machine','Guest bedroom',1,300,600,'good',null,''],
+    ['Vinyl records, about 150','Living room',150,200,600,'good',null,''],
+    ['Craftsman tool chest with tools','Garage',1,250,500,'good',null,''],
+    ['Dining table and 6 chairs','Dining room',1,150,400,'good',null,''],
+    ['Noritake china, service for 12','Dining room',1,40,150,'good',null,'Fine china rarely sells high now'],
+    ['Sofa and recliner','Living room',2,50,200,'fair',null,''],
+    ['Kitchenware and small appliances','Kitchen',1,60,180,'fair',null,''],
+    ['Lamps, rugs and decor','Living room',1,80,250,'fair',null,''],
+    ['Holiday decorations, 6 bins','Attic',6,40,120,'fair',null,''],
+    ['Patio furniture set','Garage',1,60,180,'fair',null,''],
+    ['Lawn mower and garden tools','Garage',1,80,200,'fair',null,''],
+    ['Clothing, 8 bags','Closets',8,0,40,'fair',null,''],
+    ['Linens and towels','Closets',1,0,30,'fair',null,''],
+    ['Books, about 300','Office and paperwork',300,5,50,'fair',null,''],
+    ['Boxes of papers and files','Office and paperwork',4,0,0,'fair','papers','Tax records, deeds and account statements may be needed for probate'],
+    ['Photo albums and slides','Office and paperwork',1,0,0,'good','papers',''],
+    ['Old mattress and box spring','Guest bedroom',1,0,0,'poor',null,''],
+    ['CRT television','Living room',1,-40,0,'poor','removal','Many haulers charge extra for old TVs'],
+    ['Paint cans and garage chemicals','Garage',1,-60,0,'poor','removal','Hazardous; needs a county drop-off or a hauler who takes it']
+  ];
+  return L.map((r,i) => { const it = {id:'d'+i, name:r[0], room:r[1], qty:r[2], low:r[3], high:r[4], cond:r[5], flag:r[6], note:r[7], src:'example'}; it.pile = autoPile(it); return it; });
+}
+function demoState(){
+  const rooms = DEFAULT_ROOMS.map((n,i) => ({id:'r'+i, name:n, photos:[], demoCount:[6,4,3,5,3,4,5,8,3][i]}));
+  return {
+    v:1, demo:true, step:0,
+    estate:{ whose:'Margaret Henderson', address:'4217 Bayshore Ct, Tampa, FL', role:'Executor (son)', yourState:'Virginia',
+             vacant:'2026-09-14', probate:'2027-01-15', listDate:'2026-12-14',
+             costs:{tax:560, insurance:340, utilities:180, upkeep:210, hoa:120, mortgage:0, other:120} },
+    family:['You','Sarah','David'],
+    rooms, photos:{}, items:demoItems(),
+    claims:{ d4:['Sarah','David'], d7:['Sarah'], d9:['David'], d22:['You'] }, resolved:{}, viewingAs:'Sarah',
+    planUnlocked:false, aiSummary:'', quotes:null, chosen:{}, coordinator:false,
+    schedule:null, booked:false, events:[], evIndex:0, approvals:{}, actuals:{}, closed:false, ratings:{}, filter:'all'
+  };
+}
+function blankState(){
+  return {
+    v:1, demo:false, step:0,
+    estate:{ whose:'', address:'', role:'Executor', yourState:'', vacant:'', probate:'', listDate:'', costs:{tax:0,insurance:0,utilities:0,upkeep:0,hoa:0,mortgage:0,other:0} },
+    family:['You'], rooms: DEFAULT_ROOMS.map((n,i) => ({id:'r'+i, name:n, photos:[], demoCount:0})), photos:{}, items:[],
+    claims:{}, resolved:{}, viewingAs:'You', planUnlocked:false, aiSummary:'', quotes:null, chosen:{}, coordinator:false,
+    schedule:null, booked:false, events:[], evIndex:0, approvals:{}, actuals:{}, closed:false, ratings:{}, filter:'all'
+  };
+}
+
+/* ---------- State and storage ---------- */
+const KEY = 'sorted-mvp-v1';
+let S = null;
+function load(){
+  try { const raw = localStorage.getItem(KEY); if (raw) { const s = JSON.parse(raw); if (s && s.v === 1) return s; } } catch(e) {}
+  const hd = window.claude && window.claude.hot && window.claude.hot.data;
+  if (hd && hd.v === 1) return hd;
+  return demoState();
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch(e) { try { const lite = Object.assign({}, S, {photos:{}}); localStorage.setItem(KEY, JSON.stringify(lite)); } catch(e2) {} }
+}
+try { window.claude && window.claude.hot && window.claude.hot.snapshot(() => Object.assign({}, S, {photos:{}})); } catch(e) {}
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => (n < 0 ? '−' : '') + '$' + Math.round(Math.abs(n)).toLocaleString('en-US');
+const range = (l,h) => (l === 0 && h === 0) ? 'No resale value' : (h <= 0 ? 'Costs ' + money(-l) : money(l) + ' to ' + money(h));
+const mid = it => (Number(it.low) + Number(it.high)) / 2;
+const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+const parseD = s => { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const nice = d => d ? d.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) : '';
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2400); }
+function getPath(p){ return p.split('.').reduce((o,k) => o == null ? o : o[k], S); }
+function setPath(p, v){ const ks = p.split('.'); let o = S; ks.slice(0,-1).forEach(k => o = o[k]); o[ks.at(-1)] = v; }
+
+function autoPile(it){
+  const h = Number(it.high), m = mid(it);
+  if (it.flag === 'papers') return 'keep';
+  if (h <= 0 || m < 0) return 'discard';
+  if (it.flag === 'review' || h >= 1000) return 'specialist';
+  if (h >= 300) return 'sell';
+  if (h >= 60) return 'estate';
+  return 'donate';
+}
+function assignee(it){ if (S.resolved[it.id]) return S.resolved[it.id]; const c = S.claims[it.id] || []; return c.length === 1 ? c[0] : null; }
+function effPile(it){ return assignee(it) ? 'keep' : it.pile; }
+function conflicts(){ return S.items.filter(it => (S.claims[it.id] || []).length > 1 && !S.resolved[it.id]); }
+
+function carrying(){
+  const c = S.estate.costs; const monthly = Object.values(c).reduce((a,b) => a + (Number(b) || 0), 0);
+  const weekly = monthly * 12 / 52, daily = monthly * 12 / 365;
+  const vac = parseD(S.estate.vacant); const days = vac ? Math.max(0, Math.round((today() - vac) / 864e5)) : 0;
+  const ld = parseD(S.estate.listDate); const toList = ld ? Math.max(0, Math.round((ld - today()) / 864e5)) : 0;
+  return { monthly, weekly, daily, days, soFar: days * daily, toList, untilList: toList * daily };
+}
+
+/* ---------- Plan math ---------- */
+function computePlan(){
+  const piles = {}; PILES.forEach(p => piles[p.id] = {items:[], gross:0, low:0, high:0});
+  S.items.forEach(it => { const p = piles[effPile(it)]; p.items.push(it); if (mid(it) > 0) { p.gross += mid(it); p.low += Math.max(0, Number(it.low)); p.high += Math.max(0, Number(it.high)); } });
+  const net = {
+    specialist: piles.specialist.gross * (1 - ASSUME.specialist),
+    sell: piles.sell.gross * (1 - ASSUME.sell),
+    estate: piles.estate.gross * (1 - ASSUME.estate)
+  };
+  const removal = piles.discard.items.reduce((a,it) => a + Math.max(0, -mid(it)), 0);
+  const haul = piles.discard.items.length ? ASSUME.haulBase + ASSUME.haulPer * piles.discard.items.length + removal : 0;
+  const deduction = piles.donate.gross;
+  const total = net.specialist + net.sell + net.estate - haul;
+  const highValue = piles.specialist.gross + piles.sell.gross;
+  const estateOnly = highValue * ASSUME.realize * (1 - ASSUME.estate) + (piles.estate.gross + piles.donate.gross) * (1 - ASSUME.estate) - haul;
+  const weeks = 5, weeksEstateOnly = 4;
+  const cr = carrying();
+  return { piles, net, haul, deduction, total, estateOnly, weeks, weeksEstateOnly,
+           carryPlan: cr.weekly * weeks, carryEstateOnly: cr.weekly * weeksEstateOnly,
+           advantage: (total - cr.weekly * weeks) - (estateOnly - cr.weekly * weeksEstateOnly) - ASSUME.planFee };
+}
+
+/* ---------- Vendors (example network) ---------- */
+const VENDORS = {
+  specialist:[
+    {id:'v1', name:'Bayside Fine Art and Estate Auctions', rate:0.18, fixed:150, min:0, payout:30, rating:4.7, note:'$150 pickup; catalogued online sale'},
+    {id:'v2', name:'Gulf Coast Auction Gallery', rate:0.22, fixed:0, min:0, payout:21, rating:4.4, note:'Free pickup; monthly estate auction'},
+    {id:'v3', name:'Heritage Appraisal and Consign', rate:0.15, fixed:250, min:0, payout:45, rating:4.8, note:'$250 written appraisal included'}
+  ],
+  sell:[
+    {id:'v4', name:'ListIt Consignment', rate:0.30, fixed:0, min:0, payout:7, rating:4.5, note:'Lists on eBay and Marketplace; weekly payouts'},
+    {id:'v5', name:'Tampa Bay Resale Co.', rate:0.35, fixed:0, min:0, payout:14, rating:4.3, note:'Pickup included; showroom plus online'},
+    {id:'v6', name:'Second Act Sellers', rate:0.28, fixed:100, min:0, payout:7, rating:4.6, note:'$100 intake fee'}
+  ],
+  estate:[
+    {id:'v7', name:'Sunshine Estate Sales', rate:0.38, fixed:0, min:1500, payout:14, rating:4.5, note:'$1,500 minimum; broom-clean add-on $400'},
+    {id:'v8', name:'Bayshore Estate Services', rate:0.35, fixed:0, min:2000, payout:10, rating:4.2, note:'$2,000 minimum; buys out leftovers'},
+    {id:'v9', name:'Palm and Pine Estate Sales', rate:0.40, fixed:0, min:0, payout:14, rating:4.7, note:'No minimum; donation run included'}
+  ],
+  donate:[
+    {id:'v10', name:'Bay Area Furniture Bank', cost:0, rating:4.6, note:'Free pickup of furniture; itemized receipt'},
+    {id:'v11', name:'Second Chance Thrift pickup', cost:0, rating:4.4, note:'Free pickup of bagged goods and small items'},
+    {id:'v12', name:'Neighbors in Need', cost:0, rating:4.5, note:'Free pickup; takes almost everything usable'}
+  ],
+  discard:[
+    {id:'v13', name:'Junk Haulers of Tampa', factor:0.92, rating:4.3, note:'Priced by truck volume'},
+    {id:'v14', name:'One-Truck Cleanouts', factor:1.0, rating:4.5, note:'Same-week service'},
+    {id:'v15', name:'GreenHaul', factor:1.1, rating:4.8, note:'Recycles and donates first; takes paint'}
+  ],
+  clean:[
+    {id:'v16', name:'Spotless Move-Out Cleaning', cost:320, rating:4.6, note:'Listing-ready deep clean'},
+    {id:'v17', name:'Bay Area Maids', cost:280, rating:4.2, note:'Standard clean'},
+    {id:'v18', name:'FreshStart Cleaning', cost:350, rating:4.8, note:'Includes carpets'}
+  ]
+};
+const CH_LABEL = {specialist:'Specialist auction', sell:'Online consignment', estate:'Estate sale company', donate:'Donation pickup', discard:'Cleanout hauler', clean:'Cleaning crew'};
+function channels(){ const P = computePlan(); const out = []; ['specialist','sell','estate','donate','discard'].forEach(c => { if (P.piles[c].items.length) out.push(c); }); out.push('clean'); return out; }
+function vendorById(id){ for (const k in VENDORS) { const v = VENDORS[k].find(x => x.id === id); if (v) return Object.assign({ch:k}, v); } return null; }
+function vendorTerms(ch, v, P){
+  P = P || computePlan();
+  if (['specialist','sell','estate'].includes(ch)) {
+    const gross = P.piles[ch].gross; const comm = gross * v.rate + v.fixed; const fee = Math.max(comm, v.min);
+    return {gross, fee, net: gross - fee, minHit: v.min > comm, label: Math.round(v.rate*100) + '% commission' + (v.fixed ? ' + ' + money(v.fixed) : '') + (v.min ? ', ' + money(v.min) + ' minimum' : '')};
+  }
+  if (ch === 'donate') return {gross:0, fee:0, net:0, label:'Free', deduction:P.piles.donate.gross};
+  if (ch === 'discard') { const c = Math.round(P.haul * v.factor / 10) * 10; return {gross:0, fee:c, net:-c, label: money(c) + ' quote'}; }
+  return {gross:0, fee:v.cost, net:-v.cost, label: money(v.cost) + ' flat'};
+}
+
+/* ---------- Rendering ---------- */
+function stepDone(i){
+  const P = () => computePlan();
+  switch(i){
+    case 0: return carrying().monthly > 0 && !!S.estate.address;
+    case 1: return S.rooms.some(r => r.photos.length || r.demoCount);
+    case 2: return S.items.length > 0;
+    case 3: return S.items.length > 0 && conflicts().length === 0 && S.visitedKeep;
+    case 4: return S.items.length > 0 && S.visitedPlan;
+    case 5: return Object.keys(S.chosen).length > 0 && channels().every(c => S.chosen[c]);
+    case 6: return S.booked;
+    case 7: return S.booked && S.schedule && S.schedule.every(t => t.status === 'done');
+    case 8: return S.closed;
+    case 9: return S.closed && Object.keys(S.ratings).length > 0;
+  }
+}
+function renderRail(){
+  $('rail').innerHTML = STEPS.map((st,i) =>
+    (st.g ? '<div class="group">' + st.g + '</div>' : '') +
+    '<button class="' + (i === S.step ? 'on ' : '') + (stepDone(i) ? 'done' : '') + '" data-act="go" data-i="' + i + '"' + (i === S.step ? ' aria-current="step"' : '') + '>' +
+    '<span class="n">' + (stepDone(i) && i !== S.step ? '✓' : i+1) + '</span><span class="lbl">' + st.t + '<span class="sub">' + st.s + '</span></span></button>').join('');
+}
+function renderHeader(){
+  const e = S.estate; const cr = carrying();
+  $('estateName').innerHTML = (e.whose ? esc(e.whose) + '’s house' : 'New estate') + (e.address ? ' · ' + esc(e.address.split(',').slice(-2).join(',').trim()) : '') + (S.demo ? ' <span class="pill demo-badge">Example data</span>' : '');
+  $('clock').innerHTML = cr.monthly ? '<span class="dot"></span><span><b class="num">' + money(cr.soFar) + '</b> spent carrying the house · <span class="num">' + money(cr.weekly) + '</span> a week</span>' : '<span class="muted">Add monthly costs to start the carrying-cost clock</span>';
+}
+function render(){
+  renderHeader(); renderRail();
+  const pages = [pSetup, pWalk, pInventory, pKeep, pPlan, pQuotes, pSchedule, pTrack, pSettle, pRate];
+  $('main').innerHTML = pages[S.step]() + navFooter();
+}
+function head(i, title, lede){
+  return '<div class="stephead"><div class="eyebrow">Step ' + (i+1) + ' of 10</div><h1>' + title + '</h1>' + (lede ? '<p class="lede">' + lede + '</p>' : '') + '</div>';
+}
+function navFooter(){
+  return '<div class="footer-nav">' + (S.step > 0 ? '<button class="btn" data-act="go" data-i="' + (S.step-1) + '">← ' + STEPS[S.step-1].t + '</button>' : '<span></span>') +
+    (S.step < 9 ? '<button class="btn primary" data-act="go" data-i="' + (S.step+1) + '">' + STEPS[S.step+1].t + ' →</button>' : '<span></span>') + '</div>';
+}
+
+/* Step 1 */
+function pSetup(){
+  const e = S.estate, cr = carrying();
+  const f = (p, label, type) => '<label class="f">' + label + '<input type="' + (type||'text') + '" id="f-' + p.replace(/\./g,'-') + '" data-bind="' + p + '" value="' + esc(getPath(p)) + '"></label>';
+  const costIn = ([k,l]) => '<label class="f">' + l + '<div class="money-in"><span>$</span><input type="number" min="0" step="10" id="c-' + k + '" data-bind="estate.costs.' + k + '" data-num="1" value="' + esc(e.costs[k] || 0) + '"></div></label>';
+  return head(0, 'Set up the estate', 'Tell us about the house and what it costs to keep. Everything after this, from the plan to the vendor quotes, is built on these numbers.') +
+  '<div class="grid2"><div class="card"><h2>The house</h2><div class="fields">' +
+    f('estate.whose','Whose home') + f('estate.address','Address') + f('estate.role','Your role') + f('estate.yourState','Where you live') +
+  '</div></div><div class="card"><h2>Deadlines</h2><div class="fields">' +
+    f('estate.vacant','House became empty','date') + f('estate.listDate','Target listing date','date') + f('estate.probate','Probate court date','date') +
+  '</div><p class="small muted">Most home insurance policies stop covering a vacant house after 30 to 60 days. Check yours and switch to a vacant-home policy if needed.</p></div></div>' +
+  '<div class="card"><div class="spread"><h2>Monthly costs</h2><span class="pill">' + money(cr.monthly) + ' a month</span></div><div class="grid3">' + COSTS.map(costIn).join('') + '</div>' +
+  '<div class="stats"><div class="stat"><div class="v num">' + money(cr.weekly) + '</div><div class="k">every week the house sits</div></div>' +
+  '<div class="stat"><div class="v num">' + money(cr.soFar) + '</div><div class="k">spent in ' + cr.days + ' days since it became empty</div></div>' +
+  '<div class="stat"><div class="v num">' + money(cr.untilList) + '</div><div class="k">more by the listing date (' + cr.toList + ' days)</div></div>' +
+  '<div class="stat"><div class="v num">' + money(cr.monthly * 12) + '</div><div class="k">per year if nothing changes</div></div></div></div>' +
+  '<div class="card"><div class="spread"><h2>Family</h2><span class="small muted">Everyone here can mark what they want to keep in step 4</span></div>' +
+  '<div class="row">' + S.family.map(n => '<span class="pill">' + esc(n) + (n !== 'You' ? ' <button class="btn ghost small" style="padding:0 2px" data-act="rmFam" data-n="' + esc(n) + '" aria-label="Remove ' + esc(n) + '">✕</button>' : '') + '</span>').join('') + '</div>' +
+  '<form class="row" data-form="addFam"><input type="text" id="famName" placeholder="Sibling or co-heir name" style="max-width:260px"><button class="btn small" type="submit">Invite</button></form></div>';
+}
+
+/* Step 2 */
+function pWalk(){
+  const covered = S.rooms.filter(r => r.photos.length || r.demoCount).length;
+  const realPhotos = S.rooms.reduce((a,r) => a + r.photos.length, 0);
+  return head(1, 'Walk the house', 'Go room by room and take photos of everything: inside closets, drawers, cabinets and the garage shelves. A neighbor or relative can do this if you can’t be there.') +
+  '<div class="card"><div class="spread"><h2>' + covered + ' of ' + S.rooms.length + ' rooms covered</h2><span class="small muted">' + (realPhotos ? realPhotos + ' photos uploaded' : (S.demo ? 'Example rooms use placeholder photos' : 'No photos yet')) + '</span></div>' +
+  '<div class="meter"><i style="width:' + Math.round(covered / Math.max(1,S.rooms.length) * 100) + '%"></i></div>' +
+  '<div class="callout"><span>Easy to miss: <b>under beds, the attic, the paperwork drawer, safes, and the back of closets.</b> Photograph papers and photo albums too, so nothing personal gets thrown away.</span></div></div>' +
+  '<div class="rooms">' + S.rooms.map(r => {
+    const imgs = r.photos.slice(0,4).map(id => S.photos[id] ? '<img src="' + S.photos[id] + '" alt="Photo of ' + esc(r.name) + '">' : '<div class="ph"></div>').join('');
+    const phs = !r.photos.length && r.demoCount ? Array.from({length:Math.min(4,r.demoCount)}, () => '<div class="ph"></div>').join('') : '';
+    const n = r.photos.length || r.demoCount;
+    return '<div class="room' + (n ? ' covered' : '') + '"><div class="spread"><h3>' + esc(r.name) + '</h3>' + (n ? '<span class="pill good">✓ ' + n + '</span>' : '<span class="pill">0</span>') + '</div>' +
+      '<div class="thumbs">' + (imgs || phs || '<span class="small muted" style="grid-column:1/-1">No photos yet</span>') + '</div>' +
+      '<div class="row"><label class="btn small filebtn" for="up-' + r.id + '">Add photos<input type="file" accept="image/*" multiple id="up-' + r.id + '" data-ch="photos" data-room="' + r.id + '"></label>' +
+      (r.photos.length ? '<button class="btn small ghost" data-act="clearRoom" data-room="' + r.id + '">Clear</button>' : '') + '</div></div>';
+  }).join('') + '</div>' +
+  '<form class="row" data-form="addRoom"><input type="text" id="roomName" placeholder="Add a room (e.g., Basement, Shed)" style="max-width:300px"><button class="btn small" type="submit">Add room</button></form>';
+}
+
+/* Step 3 */
+let AI = { sample:null, busy:false, msg:'' };
+function pInventory(){
+  const P = computePlan();
+  const realPhotos = S.rooms.reduce((a,r) => a + r.photos.length, 0);
+  const shown = S.items.filter(it => S.filter === 'all' || effPile(it) === S.filter);
+  const chip = p => { const d = P.piles[p.id]; return '<button class="pilechip p-' + p.id + (S.filter === p.id ? ' on' : '') + '" data-act="filter" data-f="' + p.id + '"><span class="small"><span class="swatch"></span>' + p.label + '</span><span class="c num">' + d.items.length + '</span><span class="small muted num">' + (d.gross ? money(d.low) + '–' + money(d.high) : (p.id === 'discard' && d.items.length ? 'haul ~' + money(P.haul) : '—')) + '</span></button>'; };
+  let aiBox;
+  if (AI.busy) aiBox = '<p><b>Working…</b> ' + esc(AI.msg) + '</p>';
+  else if (realPhotos && AI.sample) aiBox = '<div class="row"><button class="btn primary" data-act="runAI">Build inventory from my ' + realPhotos + ' photos</button><span class="small muted">' + esc(AI.msg || 'AI lists each item, estimates a used-resale value and sorts it into a pile.') + '</span></div>';
+  else if (realPhotos) aiBox = '<p class="small muted">AI inventory isn’t available in this view. Open the app in Claude to analyze your photos, or add items by hand below.</p>';
+  else aiBox = '<div class="row"><span class="small muted">' + (AI.msg ? esc(AI.msg) + ' ' : '') + 'Upload room photos in step 2 and AI will build this list. ' + (S.items.some(i => i.src === 'example') ? 'Showing the example house.' : '') + '</span>' + (S.items.length ? '' : '<button class="btn small" data-act="loadExampleItems">Use example inventory</button>') + '</div>';
+  const flagTxt = {review:'Get an expert’s opinion before selling', papers:'Personal papers: don’t discard', removal:'Costs money to remove'};
+  return head(2, 'AI inventory', 'Every item gets a realistic used-resale value and a pile. Change any pile you disagree with; the plan updates as you go.') +
+  '<div class="card">' + aiBox + '</div>' +
+  '<div class="pilebar">' + PILES.map(chip).join('') + '</div>' +
+  '<div class="spread"><span class="small muted">' + (S.filter === 'all' ? 'All ' + S.items.length + ' items' : shown.length + ' items in ' + PL[S.filter].label + ' · ' + PL[S.filter].hint) + '</span>' + (S.filter !== 'all' ? '<button class="btn small ghost" data-act="filter" data-f="all">Show all</button>' : '') + '</div>' +
+  '<div class="tags">' + shown.map(it => {
+    const ep = effPile(it), who = assignee(it);
+    return '<div class="tagwrap"><div class="tag p-' + ep + '"><div class="nm">' + esc(it.name) + '</div><div class="meta">' + esc(it.room) + (it.qty > 1 ? ' · qty ' + it.qty : '') + ' · ' + esc(it.cond) + '</div>' +
+      '<div class="val num">' + range(Number(it.low), Number(it.high)) + '</div>' +
+      (it.flag ? '<div class="flag ' + it.flag + '">⚑ ' + flagTxt[it.flag] + '</div>' : '') + (it.note ? '<div class="meta">' + esc(it.note) + '</div>' : '') +
+      '<div class="tagfoot">' + (who ? '<span class="pill" style="color:var(--p-keep)">Going to ' + esc(who) + '</span>' :
+        '<select class="pilesel p-' + ep + '" data-ch="pile" data-id="' + it.id + '" aria-label="Pile for ' + esc(it.name) + '">' + PILES.map(p => '<option value="' + p.id + '"' + (p.id === it.pile ? ' selected' : '') + '>' + p.label + '</option>').join('') + '</select>') +
+      '<button class="btn ghost small" data-act="rmItem" data-id="' + it.id + '" aria-label="Remove ' + esc(it.name) + '">Remove</button></div></div></div>';
+  }).join('') + '</div>' +
+  '<form class="card" data-form="addItem"><h3>Add an item by hand</h3><div class="grid3">' +
+  '<label class="f">Item<input type="text" id="ai-name" required></label>' +
+  '<label class="f">Room<select id="ai-room">' + S.rooms.map(r => '<option>' + esc(r.name) + '</option>').join('') + '</select></label>' +
+  '<div class="row" style="align-items:end"><label class="f" style="flex:1">Low $<input type="number" id="ai-low" value="0"></label><label class="f" style="flex:1">High $<input type="number" id="ai-high" value="0"></label></div>' +
+  '</div><div><button class="btn small" type="submit">Add item</button></div></form>';
+}
+
+/* Step 4 */
+function pKeep(){
+  S.visitedKeep = true;
+  const me = S.viewingAs;
+  const cand = S.items.filter(it => it.flag !== 'papers' && Number(it.high) > 0);
+  const conf = conflicts();
+  const totals = {}; S.family.forEach(n => totals[n] = 0);
+  S.items.forEach(it => { const w = assignee(it); if (w && totals[w] != null) totals[w] += Math.max(0, mid(it)); });
+  return head(3, 'Family keep-list', 'Each person marks what they want before anything is sold. Items more than one person wants show up as conflicts to settle first.') +
+  '<div class="card"><div class="spread"><div class="row"><span class="small muted">Marking as</span><div class="seg" role="group">' + S.family.map(n => '<button class="' + (n === me ? 'on' : '') + '" data-act="viewAs" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') + '</div></div>' +
+  '<div class="row small">' + S.family.map(n => '<span class="pill num">' + esc(n) + ': ' + money(totals[n]) + '</span>').join('') + '</div></div>' +
+  '<p class="small muted">Totals show the estimated value each person is taking, so the split stays fair.</p></div>' +
+  (conf.length ? '<div class="card" style="border-color:var(--warn)"><h2>' + conf.length + ' conflict' + (conf.length > 1 ? 's' : '') + ' to settle</h2>' + conf.map(it =>
+    '<div class="want"><div class="grow"><b>' + esc(it.name) + '</b><div class="small muted">' + range(Number(it.low), Number(it.high)) + ' · wanted by ' + S.claims[it.id].map(esc).join(' and ') + '</div></div><div class="row">' +
+    S.claims[it.id].map(n => '<button class="btn small" data-act="resolve" data-id="' + it.id + '" data-n="' + esc(n) + '">Give to ' + esc(n) + '</button>').join('') +
+    '<button class="btn small ghost" data-act="resolve" data-id="' + it.id + '" data-n="">Sell it, split the money</button></div></div>').join('') + '</div>' : '') +
+  '<div class="card"><h2>Items you can claim</h2>' + cand.map(it => {
+    const c = S.claims[it.id] || []; const on = c.includes(me); const w = assignee(it);
+    return '<div class="want"><div class="grow"><b>' + esc(it.name) + '</b><div class="small muted">' + esc(it.room) + ' · ' + range(Number(it.low), Number(it.high)) +
+      (w ? ' · <span style="color:var(--p-keep);font-weight:700">going to ' + esc(w) + '</span>' : (c.length ? ' · wanted by ' + c.map(esc).join(', ') : '')) + '</div></div>' +
+      '<button class="toggle' + (on ? ' on' : '') + '" data-act="claim" data-id="' + it.id + '" aria-pressed="' + on + '">' + (on ? '✓ I want this' : 'I want this') + '</button></div>';
+  }).join('') + '</div>' +
+  '<div class="callout"><span><b>Papers and photo albums stay with the family automatically.</b> They go to the executor for review before anything is thrown away.</span></div>';
+}
+
+/* Step 5 */
+function planBody(P){
+  const rows = [
+    ['specialist','Consign to a specialist auction house', Math.round(ASSUME.specialist*100) + '% seller commission', P.net.specialist],
+    ['sell','Online consignment seller lists and ships', Math.round(ASSUME.sell*100) + '% fee', P.net.sell],
+    ['estate','Estate sale or online estate auction', Math.round(ASSUME.estate*100) + '% commission', P.net.estate],
+    ['donate','Free charity pickup with itemized receipt', 'Tax deduction ~' + money(P.deduction), 0],
+    ['discard','Cleanout hauler after everything else', 'Estimated cost', -P.haul],
+    ['keep','Family pickup and papers shipped to executor', '—', 0]
+  ].filter(r => P.piles[r[0]].items.length);
+  const maxv = Math.max(P.total, P.estateOnly, 1);
+  return '<div class="hero"><div class="bignet"><div class="k">Expected cash to the family with this plan</div><div class="v num">' + money(P.total) + '</div>' +
+    '<div class="k">House empty in about ' + P.weeks + ' weeks · ' + money(P.carryPlan) + ' in carrying costs meanwhile</div></div>' +
+    '<div class="card compare"><h3>Compared with one estate sale for everything</h3>' +
+    '<div class="bar"><span>This plan</span><span class="track"><i style="width:' + Math.max(2, P.total/maxv*100) + '%;background:var(--accent)"></i></span><b class="num" style="text-align:right">' + money(P.total) + '</b></div>' +
+    '<div class="bar"><span>Estate sale only</span><span class="track"><i style="width:' + Math.max(2, P.estateOnly/maxv*100) + '%;background:var(--p-discard)"></i></span><b class="num" style="text-align:right">' + money(P.estateOnly) + '</b></div>' +
+    '<p class="small"><b style="color:' + (P.advantage >= 0 ? 'var(--good)' : 'var(--bad)') + '">' + (P.advantage >= 0 ? '+' : '') + money(P.advantage) + '</b> better for the family after the ' + money(ASSUME.planFee) + ' Sorted fee and one extra week of carrying costs.</p></div></div>' +
+    '<div class="card"><h2>What happens to each pile</h2><div class="tablewrap"><table><thead><tr><th>Pile</th><th>Channel</th><th class="r">Items</th><th class="r">Est. value</th><th>Cost</th><th class="r">To family</th></tr></thead><tbody>' +
+    rows.map(r => '<tr class="p-' + r[0] + '"><td><span class="swatch"></span>' + PL[r[0]].label + '</td><td>' + r[1] + '</td><td class="r num">' + P.piles[r[0]].items.length + '</td><td class="r num">' + (P.piles[r[0]].gross ? money(P.piles[r[0]].gross) : '—') + '</td><td class="small">' + r[2] + '</td><td class="r num"><b>' + (r[3] ? money(r[3]) : '—') + '</b></td></tr>').join('') +
+    '</tbody></table></div></div>' +
+    '<div class="grid2"><div class="card"><h2>Order of work</h2><ol class="steps">' +
+    ['Family picks up claimed items; papers and photos go to the executor',
+     P.piles.specialist.items.length ? 'Specialist picks up ' + P.piles.specialist.items.length + ' high-value items before anything else is priced' : null,
+     P.piles.sell.items.length ? 'Consignment seller collects ' + P.piles.sell.items.length + ' items to sell online' : null,
+     P.piles.estate.items.length ? 'Estate sale or online auction clears the everyday items' : null,
+     P.piles.donate.items.length ? 'Charity pickup takes what is left and usable' : null,
+     P.piles.discard.items.length ? 'Hauler removes the rest, including items that cost money to dispose of' : null,
+     'Deep clean, then hand the keys to the listing agent'].filter(Boolean).map(s => '<li>' + s + '</li>').join('') + '</ol></div>' +
+    '<div class="card"><h2>Assumptions</h2><ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">' +
+    '<li>Values are midpoints of used-resale ranges, not retail or insurance values.</li>' +
+    '<li>Fees: specialist auction ' + ASSUME.specialist*100 + '%, consignment ' + ASSUME.sell*100 + '%, estate sale ' + ASSUME.estate*100 + '% (typical surveyed rates).</li>' +
+    '<li>“Estate sale only” assumes high-value items sell at ' + ASSUME.realize*100 + '% of value under generalist pricing and day-two and day-three discounts.</li>' +
+    '<li>Hauling: about ' + money(ASSUME.haulBase) + ' plus ' + money(ASSUME.haulPer) + ' per discard item, plus removal costs.</li>' +
+    '<li>Quotes in step 6 replace these estimates with real terms.</li></ul></div></div>';
+}
+function pPlan(){
+  if (!S.items.length) return head(4, 'Your plan', '') + '<div class="card"><p>Build the inventory in step 3 first. The plan is calculated from it.</p></div>';
+  const P = computePlan();
+  S.visitedPlan = true;
+  const ai = AI.sample ? (S.aiSummary ? '<div class="aitext">' + esc(S.aiSummary) + '</div><div class="row"><button class="btn small" data-act="copyAI">Copy for the family</button><button class="btn small ghost" data-act="aiSummary">Rewrite</button></div>' :
+    '<div class="row"><button class="btn" data-act="aiSummary"' + (AI.busy ? ' disabled' : '') + '>' + (AI.busy ? 'Writing…' : 'Write a summary for my siblings') + '</button><span class="small muted">AI turns the plan into a short note you can text the family.</span></div>') : '';
+  return head(4, 'Your plan', 'Built from ' + S.items.length + ' items and your monthly costs. It updates if you change piles or claims.') + planBody(P) + (ai ? '<div class="card"><h2>Share with the family</h2>' + ai + '</div>' : '');
+}
+
+/* Step 6 */
+function pQuotes(){
+  if (!S.items.length) return head(5, 'Get quotes', '') + '<div class="card"><p>Build the inventory in step 3 first. Vendors quote against it.</p></div>';
+  const P = computePlan(); const chs = channels();
+  if (!S.planUnlocked) return head(5, 'Get quotes', 'We send your inventory and photos to three vetted local vendors for each channel, then line up their terms side by side.') +
+    '<div class="card" style="align-items:center;text-align:center;padding:32px 18px"><div style="max-width:460px;display:flex;flex-direction:column;gap:12px;align-items:center"><h2>Get ' + chs.length * 3 + ' quotes for ' + money(ASSUME.planFee) + '</h2>' +
+    '<p class="muted">One flat fee for the whole estate. It covers quotes for ' + chs.map(c => CH_LABEL[c].toLowerCase()).join(', ') + ', plus scheduling, tracking and your final executor report.</p>' +
+    '<p class="small muted">Sorted is never paid by buyers, haulers or auction houses, so every recommendation works only for your family.</p>' +
+    '<button class="btn primary" data-act="unlock">Pay ' + money(ASSUME.planFee) + ' and get quotes</button><p class="small muted">Prototype: no card is charged.</p></div></div>';
+  if (!S.quotes) return head(5, 'Get quotes', 'We send your inventory and photos to three vetted local vendors for each channel, then line up their terms side by side.') +
+    '<div class="card"><div class="row"><button class="btn primary" data-act="requestQuotes">Request ' + chs.length * 3 + ' quotes</button><span class="small muted">' + chs.map(c => CH_LABEL[c]).join(' · ') + '</span></div>' +
+    '<div class="callout"><span>Vendors pay Sorted a flat fee for each request, whether or not they win the job. <b>We never take a cut of the sale.</b></span></div></div>';
+  let totalNet = 0;
+  const blocks = chs.map(ch => {
+    const list = VENDORS[ch];
+    const chosen = S.chosen[ch]; const cv = chosen ? list.find(v => v.id === chosen) : null; if (cv) totalNet += vendorTerms(ch, cv, P).net;
+    return '<div class="card"><div class="spread"><h2>' + CH_LABEL[ch] + '</h2><span class="small muted">' + (P.piles[ch] ? P.piles[ch].items.length + ' items' + (P.piles[ch].gross ? ' · est. ' + money(P.piles[ch].gross) : '') : 'Whole house') + '</span></div><div class="tablewrap"><table><thead><tr><th></th><th>Vendor</th><th>Terms</th><th class="r">Rating</th><th class="r">Payout</th><th class="r">' + (['specialist','sell','estate'].includes(ch) ? 'Family nets' : 'Cost') + '</th></tr></thead><tbody>' +
+    list.map(v => { const t = vendorTerms(ch, v, P); const sel = chosen === v.id;
+      return '<tr><td><input type="radio" name="q-' + ch + '" id="q-' + v.id + '" data-ch="choose" data-c="' + ch + '" value="' + v.id + '"' + (sel ? ' checked' : '') + ' aria-label="Choose ' + esc(v.name) + '"></td><td><label for="q-' + v.id + '"><b>' + esc(v.name) + '</b></label><div class="small muted">' + esc(v.note) + '</div>' + (t.minHit ? '<div class="small" style="color:var(--warn);font-weight:700">Minimum fee is more than the commission on a sale this size</div>' : '') + '</td><td class="small">' + t.label + '</td><td class="r num">★ ' + v.rating + '</td><td class="r small">' + (v.payout ? v.payout + ' days' : '—') + '</td><td class="r num"><b>' + (['specialist','sell','estate'].includes(ch) ? money(t.net) : (t.fee ? money(t.fee) : 'Free')) + '</b></td></tr>'; }).join('') +
+    '</tbody></table></div></div>';
+  }).join('');
+  const allChosen = chs.every(c => S.chosen[c]);
+  return head(5, 'Get quotes', 'Pick one vendor per channel. Ratings and payout times come from past Sorted jobs.') +
+    '<div class="callout"><span><b>Prototype:</b> the vendor network isn’t live yet. These vendors and terms are examples, priced on your inventory.</span></div>' + blocks +
+    '<div class="card flat"><div class="spread"><h2>' + (allChosen ? 'Family nets about ' + money(totalNet) + ' with these vendors' : 'Choose a vendor for each channel') + '</h2><span class="small muted">Plan estimate: ' + money(P.total) + '</span></div></div>';
+}
+
+/* Step 7 */
+function buildSchedule(){
+  const base = addDays(today(), (8 - today().getDay()) % 7 || 7); // next Monday
+  const P = computePlan(); const out = [];
+  const push = (key, title, day, vendor) => out.push({key, title, date: iso(addDays(base, day)), vendor: vendor || null, status:'scheduled'});
+  push('family', 'Family picks up claimed items; papers shipped to executor', 0);
+  if (P.piles.specialist.items.length) push('specialist', 'Specialist pickup of high-value items', 2, S.chosen.specialist);
+  if (P.piles.sell.items.length) push('sell', 'Consignment seller collects items', 4, S.chosen.sell);
+  if (P.piles.estate.items.length) push('estate', 'Estate sale, Friday to Sunday', 18, S.chosen.estate);
+  if (P.piles.donate.items.length) push('donate', 'Donation pickup', 21, S.chosen.donate);
+  if (P.piles.discard.items.length) push('discard', 'Cleanout haul', 23, S.chosen.discard);
+  push('clean', 'Deep clean', 25, S.chosen.clean);
+  push('list', 'Keys to the listing agent', 29);
+  return out;
+}
+function pSchedule(){
+  if (!channels().every(c => S.chosen[c])) return head(6, 'Book and schedule', '') + '<div class="card"><p>Choose a vendor for each channel in step 6 first.</p></div>';
+  if (!S.schedule || !S.booked) S.schedule = S.schedule && !S.booked ? S.schedule : buildSchedule();
+  const sch = S.schedule; const end = parseD(sch.at(-1).date); const days = Math.round((end - today()) / 864e5);
+  return head(6, 'Book and schedule', 'The order matters: valuable items leave before anyone prices the rest, and the hauler comes last. Adjust any date that doesn’t work.') +
+  '<div class="card"><div class="spread"><div><h2>Add a Sorted coordinator</h2><p class="small muted">A coordinator books every vendor, joins walkthroughs by video and approves small decisions for you. ' + money(ASSUME.coordFee) + ' a month, cancel anytime.</p></div>' +
+  '<button class="toggle' + (S.coordinator ? ' on' : '') + '" style="' + (S.coordinator ? 'background:var(--accent);border-color:var(--accent)' : '') + '" data-act="coord" aria-pressed="' + S.coordinator + '">' + (S.coordinator ? '✓ Coordinator added' : 'Add coordinator') + '</button></div></div>' +
+  '<div class="card"><div class="spread"><h2>Schedule</h2><span class="pill">House ready to list in ' + days + ' days · ' + nice(end) + '</span></div>' +
+  sch.map((t,i) => { const v = t.vendor ? vendorById(t.vendor) : null;
+    return '<div class="task"><div class="grow"><b>' + esc(t.title) + '</b><div class="small muted">' + (v ? esc(v.name) : (t.key === 'family' ? esc(S.family.join(', ')) : 'Listing agent')) + (S.coordinator && v ? ' · coordinator attends' : '') + '</div></div>' +
+      '<input type="date" style="max-width:160px" id="sd-' + i + '" data-ch="sdate" data-i="' + i + '" value="' + t.date + '"' + (S.booked ? ' disabled' : '') + ' aria-label="Date for ' + esc(t.title) + '"></div>'; }).join('') + '</div>' +
+  '<div class="row">' + (S.booked ? '<span class="pill good">✓ Booked. Vendors have been notified.</span><button class="btn small ghost" data-act="unbook">Change schedule</button>' : '<button class="btn primary" data-act="book">Book these vendors</button><span class="small muted">Prototype: no vendors are actually contacted.</span>') + '</div>';
+}
+
+/* Step 8 */
+function buildEvents(){
+  const ev = [];
+  S.schedule.forEach((t,i) => {
+    const v = t.vendor ? vendorById(t.vendor) : null; const n = v ? v.name : '';
+    const P = computePlan();
+    const PI = P.piles;
+    const others = S.family.filter(x => x !== 'You');
+    const rev = PI.specialist.items.find(x => x.flag === 'review');
+    const topSell = PI.sell.items.slice().sort((a,b) => mid(b) - mid(a))[0];
+    const estItem = PI.estate.items[0];
+    const disc = PI.discard.items.slice(0,2).map(x => x.name.toLowerCase());
+    const M = {
+      family: [(others.length ? others.join(' and ') + ' picked up their items. ' : 'Claimed items were picked up. ') + (S.items.some(x => x.flag === 'papers') ? 'Papers and photos shipped to you; tracking sent by email.' : '')],
+      specialist: [n + ' arrived and photographed ' + PI.specialist.items.length + ' items.'].concat(rev ? [{q: n + ' recommends a $200 written appraisal for the ' + rev.name.toLowerCase() + ' before it is sold. Approve?', yes:'Appraisal ordered.', no:'It will be sold without an appraisal.'}] : []).concat(['Items picked up and catalogued for the next sale.']),
+      sell: [n + ' collected ' + PI.sell.items.length + ' items and listed them online.'].concat(topSell ? [topSell.name + ' sold for ' + money(Math.round(mid(topSell) * 1.05 / 10) * 10) + '. Payout added to your settlement.'] : []),
+      estate: [n + ' staged the house and priced ' + PI.estate.items.length + ' item groups.'].concat(estItem ? [{q: n + ' wants to price the ' + estItem.name.toLowerCase() + ' at ' + money(Math.round(Math.max(10, Number(estItem.low) + (Number(estItem.high) - Number(estItem.low)) * 0.3) / 5) * 5) + ' (plan estimate ' + range(Number(estItem.low), Number(estItem.high)) + '). Approve?', yes:'Price approved.', no:'Asked them to start closer to the plan estimate.'}] : []).concat(['Sale finished. The last day was half off; leftovers moved to the donation pile.']),
+      donate: [n + ' picked up the donation items. Itemized receipt uploaded.'],
+      discard: [n + ' hauled away the remaining items' + (disc.length ? ', including the ' + disc.join(' and the ') : '') + '.'],
+      clean: [n + ' finished the deep clean. Photos uploaded.'],
+      list: ['Keys handed to the listing agent. The house is ready to list.']
+    }[t.key] || [];
+    M.forEach((m,j) => ev.push(typeof m === 'string' ? {task:i, text:m, last: j === M.length-1} : {task:i, approval:true, q:m.q, yes:m.yes, no:m.no, id:'a'+i+'_'+j}));
+  });
+  return ev;
+}
+function pTrack(){
+  if (!S.booked) return head(7, 'Track progress', '') + '<div class="card"><p>Book your vendors in step 7 first.</p></div>';
+  if (!S.events.length) S.events = buildEvents();
+  const done = S.schedule.filter(t => t.status === 'done').length;
+  const shown = S.events.slice(0, S.evIndex);
+  const pending = shown.find(e => e.approval && !S.approvals[e.id]);
+  const finished = S.evIndex >= S.events.length && !pending;
+  const statusPill = st => st === 'done' ? '<span class="pill good">Done</span>' : st === 'active' ? '<span class="pill warn">In progress</span>' : '<span class="pill">Scheduled</span>';
+  return head(7, 'Track progress', 'Vendors check in with photos and notes. You only step in when something needs your approval' + (S.coordinator ? ', and your coordinator handles most of those.' : '.')) +
+  '<div class="card"><div class="spread"><h2>' + done + ' of ' + S.schedule.length + ' tasks done</h2>' +
+  (finished ? '<span class="pill good">✓ House is empty</span>' : '<button class="btn primary" data-act="nextEvent"' + (pending ? ' disabled' : '') + '>' + (pending ? 'Waiting on your approval' : 'Show next vendor update') + '</button>') + '</div>' +
+  '<div class="meter"><i style="width:' + Math.round(done / S.schedule.length * 100) + '%"></i></div><p class="small muted">Prototype: updates are simulated so you can walk through the flow.</p></div>' +
+  '<div class="grid2"><div class="card"><h2>Updates</h2><div class="feed">' + (shown.length ? shown.slice().reverse().map(e => {
+    const t = S.schedule[e.task]; const when = nice(parseD(t.date));
+    if (!e.approval) return '<div class="ev"><span class="t">' + when + '</span><div class="body">' + esc(e.text) + '</div></div>';
+    const a = S.approvals[e.id];
+    return '<div class="ev approval"><span class="t">' + when + '</span><div class="body"><b>Needs your approval</b><span>' + esc(e.q) + '</span>' +
+      (a ? '<span class="small" style="color:var(--good)">' + (a === 'yes' ? '✓ Approved. ' + esc(e.yes) : 'Declined. ' + esc(e.no)) + '</span>' :
+        '<div class="row"><button class="btn small primary" data-act="approve" data-id="' + e.id + '" data-v="yes">Approve</button><button class="btn small" data-act="approve" data-id="' + e.id + '" data-v="no">Decline</button></div>') + '</div></div>';
+  }).join('') : '<p class="muted small">No updates yet. The first one arrives on ' + nice(parseD(S.schedule[0].date)) + '.</p>') + '</div></div>' +
+  '<div class="card"><h2>Tasks</h2>' + S.schedule.map(t => '<div class="task"><div class="grow"><b>' + esc(t.title) + '</b><div class="small muted">' + nice(parseD(t.date)) + '</div></div>' + statusPill(t.status) + '</div>').join('') + '</div></div>';
+}
+
+/* Step 9 */
+const ACT_FACTORS = [1.06, 0.93, 1.02, 1, 0.97, 1, 1];
+function settleRows(){
+  const P = computePlan();
+  return channels().filter(c => ['specialist','sell','estate','discard','clean'].includes(c)).map((ch,i) => {
+    const v = VENDORS[ch].find(x => x.id === S.chosen[ch]); const t = vendorTerms(ch, v, P);
+    const quoted = Math.round(t.net); const def = ['discard','clean'].includes(ch) ? quoted : Math.round(quoted * ACT_FACTORS[i % ACT_FACTORS.length]);
+    const actual = S.actuals[ch] != null ? Number(S.actuals[ch]) : def;
+    return {ch, v, quoted, actual};
+  });
+}
+function reportText(rows, total){
+  const e = S.estate, P = computePlan(), cr = carrying();
+  const donated = P.piles.donate.items;
+  const kept = S.items.filter(it => assignee(it));
+  return 'ESTATE CLEAR-OUT REPORT\n' + (e.whose ? 'Estate of ' + e.whose + '\n' : '') + (e.address ? e.address + '\n' : '') + 'Prepared ' + nice(today()) + ' by ' + (e.role || 'the executor') + '\n\n' +
+    'SUMMARY\nNet proceeds to the estate: ' + money(total) + '\nItems inventoried: ' + S.items.length + '\nHouse ready to list: ' + nice(parseD(S.schedule.at(-1).date)) + '\nMonthly carrying cost: ' + money(cr.monthly) + '\n\n' +
+    'VENDOR PAYOUTS AND COSTS\n' + rows.map(r => '- ' + r.v.name + ' (' + CH_LABEL[r.ch] + '): ' + money(r.actual) + ' (quoted ' + money(r.quoted) + ')').join('\n') + '\n- Sorted fee: ' + money(-ASSUME.planFee) + (S.coordinator ? '\n- Sorted coordinator (2 months): ' + money(-2*ASSUME.coordFee) : '') + '\n\n' +
+    'ITEMS DISTRIBUTED TO FAMILY\n' + (kept.length ? kept.map(it => '- ' + it.name + ' to ' + assignee(it) + ' (est. ' + range(Number(it.low), Number(it.high)) + ')').join('\n') : '- None') + '\n- Papers and photos sent to the executor\n\n' +
+    'DONATIONS (keep receipts for tax records)\n' + (donated.length ? donated.map(it => '- ' + it.name + ': est. fair market value ' + money(Math.max(0, mid(it)))).join('\n') : '- None') + '\nTotal est. value: ' + money(P.deduction) + '\n\n' +
+    'Values are estimates, not appraisals. Confirm tax treatment with the estate’s attorney or accountant.';
+}
+function pSettle(){
+  if (!S.booked) return head(8, 'Settle and close', '') + '<div class="card"><p>Book and track your vendors first.</p></div>';
+  const rows = settleRows(); const P = computePlan();
+  const fees = ASSUME.planFee + (S.coordinator ? 2 * ASSUME.coordFee : 0);
+  const total = rows.reduce((a,r) => a + r.actual, 0) - fees;
+  const donTotal = P.deduction;
+  return head(8, 'Settle and close', 'Check every payout against its quote, collect donation receipts, and hand co-heirs and the attorney one clean report.') +
+  '<div class="stats"><div class="stat"><div class="v num">' + money(total) + '</div><div class="k">net to the estate after all fees</div></div>' +
+  '<div class="stat"><div class="v num">' + money(P.total) + '</div><div class="k">plan estimate</div></div>' +
+  '<div class="stat"><div class="v num">' + money(P.estateOnly) + '</div><div class="k">estate sale only, estimated</div></div>' +
+  '<div class="stat"><div class="v num">' + money(donTotal) + '</div><div class="k">donations for the tax record</div></div></div>' +
+  '<div class="card"><h2>Payouts against quotes</h2><div class="tablewrap"><table><thead><tr><th>Vendor</th><th class="r">Quoted</th><th class="r">Actual</th><th class="r">Difference</th></tr></thead><tbody>' +
+  rows.map(r => { const d = r.actual - r.quoted; return '<tr><td><b>' + esc(r.v.name) + '</b><div class="small muted">' + CH_LABEL[r.ch] + '</div></td><td class="r num">' + money(r.quoted) + '</td><td class="r"><div class="money-in" style="max-width:130px;margin-left:auto"><span>$</span><input type="number" id="act-' + r.ch + '" data-ch="actual" data-c="' + r.ch + '" value="' + r.actual + '"></div></td><td class="r num" style="color:' + (d < 0 ? 'var(--bad)' : d > 0 ? 'var(--good)' : 'var(--muted)') + '">' + (d > 0 ? '+' : '') + money(d) + '</td></tr>'; }).join('') +
+  '</tbody></table></div><p class="small muted">Enter what each vendor actually paid or charged. Costs are negative.</p></div>' +
+  '<div class="card"><h2>Donation receipts</h2>' + (P.piles.donate.items.length ? P.piles.donate.items.map(it => '<div class="task"><div class="grow">' + esc(it.name) + '</div><span class="num">' + money(Math.max(0, mid(it))) + '</span><span class="pill good">Receipt on file</span></div>').join('') : '<p class="muted small">Nothing donated.</p>') +
+  '<p class="small muted">If total non-cash donations exceed $500, the return needs IRS Form 8283. A single item over $5,000 needs a qualified appraisal.</p></div>' +
+  '<div class="card"><div class="spread"><h2>Executor report</h2><button class="btn small" data-act="copyReport">Copy report</button></div><pre class="report" id="report">' + esc(reportText(rows, total)) + '</pre></div>' +
+  '<div class="row">' + (S.closed ? '<span class="pill good">✓ Estate clear-out closed</span>' : '<button class="btn primary" data-act="close">Close the clear-out</button>') + '</div>';
+}
+
+/* Step 10 */
+function pRate(){
+  if (!S.booked) return head(9, 'Rate vendors', '') + '<div class="card"><p>Rate vendors once the work is done.</p></div>';
+  const rows = settleRows(); const byCh = Object.fromEntries(rows.map(r => [r.ch, r]));
+  const used = channels().map(ch => ({ch, v: VENDORS[ch].find(x => x.id === S.chosen[ch])}));
+  const P = computePlan(); const cr = carrying();
+  const start = parseD(S.estate.vacant); const end = parseD(S.schedule.at(-1).date);
+  return head(9, 'Rate vendors', 'Your ratings, with each vendor’s payout against its quote, feed the scorecards the next family sees.') +
+  '<div class="card"><div class="tablewrap"><table><thead><tr><th>Vendor</th><th>Your rating</th><th class="r">Paid vs quote</th><th class="r">Network rating</th></tr></thead><tbody>' +
+  used.map(({ch,v}) => { const r = byCh[ch]; const pct = r && r.quoted ? Math.round(r.actual / r.quoted * 100) : null; const mine = S.ratings[v.id] || 0;
+    const net = mine ? ((v.rating * 40 + mine) / 41).toFixed(2) : v.rating.toFixed(1);
+    return '<tr><td><b>' + esc(v.name) + '</b><div class="small muted">' + CH_LABEL[ch] + '</div></td><td><div class="stars" role="group" aria-label="Rate ' + esc(v.name) + '">' + [1,2,3,4,5].map(n => '<button class="' + (n <= mine ? 'on' : '') + '" data-act="rate" data-id="' + v.id + '" data-n="' + n + '" aria-label="' + n + ' stars">★</button>').join('') + '</div></td>' +
+    '<td class="r num">' + (pct == null ? '—' : (['discard','clean'].includes(ch) ? (pct === 100 ? 'On quote' : pct + '%') : pct + '%')) + '</td><td class="r num">★ ' + net + '</td></tr>'; }).join('') +
+  '</tbody></table></div></div>' +
+  '<div class="card flat"><h2>' + (S.closed ? 'Done. The house is ready to sell.' : 'Almost done') + '</h2><p>' +
+  (start && end ? 'From empty house to listing-ready in ' + Math.round((end - start) / 864e5) + ' days. ' : '') + S.items.length + ' items sorted, ' + P.piles.donate.items.length + ' donated, ' + S.items.filter(it => assignee(it)).length + ' kept by family. ' +
+  'Every week saved was worth ' + money(cr.weekly) + ' in carrying costs.</p>' + (S.closed ? '' : '<p class="small muted">Close the clear-out in step 9 to finish.</p>') + '</div>';
+}
+
+/* ---------- AI ---------- */
+function dataUrlToBlob(u){ const [h, b] = u.split(','); const mime = h.match(/:(.*?);/)[1]; const bin = atob(b); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i); return new Blob([arr], {type:mime}); }
+async function runAI(){
+  if (!AI.sample || AI.busy) return;
+  let maxPer = 4;
+  try { const lim = await AI.sample.limits(); maxPer = typeof lim.images === 'number' ? Math.max(1, Math.min(lim.images, 6)) : (lim.images ? 4 : 0); } catch(e) {}
+  if (!maxPer) { AI.msg = 'Image analysis isn’t available right now. Add items by hand below.'; render(); return; }
+  AI.busy = true; const found = []; const rooms = S.rooms.filter(r => r.photos.length);
+  try {
+    for (const r of rooms) {
+      for (let k = 0; k < r.photos.length; k += maxPer) {
+        AI.msg = 'Looking through the ' + r.name.toLowerCase() + '…'; render();
+        const imgs = r.photos.slice(k, k + maxPer).map(id => S.photos[id]).filter(Boolean).map(dataUrlToBlob);
+        const prompt = 'You are inventorying a house that a family must empty after the owner died or moved into care. Room: ' + r.name + '.\n' +
+          'Look at the attached photos and list every distinct item, or group of similar items, that the family must decide about: furniture, collections, art, jewelry, electronics, tools, decor, appliances, clothing groups, boxes of papers, photo albums.\n' +
+          'For each, estimate what it would realistically sell for USED in the United States today (not retail, not insurance value), in whole US dollars.\n' +
+          'Return ONLY a JSON array. Each element: {"name": string (specific, e.g. "Mid-century walnut dresser"), "qty": integer, "low": number, "high": number, "cond": "good"|"fair"|"poor", "flag": null|"review"|"papers"|"removal", "note": string (one short practical tip, or "")}.\n' +
+          'Use flag "review" when the item could be worth $1,000 or more or needs an expert to value it; "papers" for documents, records, letters or photos the family must review before anything is discarded; "removal" when disposing of it costs money (use negative low/high for that cost). Use low=0 and high=0 for items with no resale value. Do not repeat the same item twice.';
+        const out = await AI.sample.json(prompt, {images: imgs, modelTier:'default'});
+        const arr = Array.isArray(out) ? out : (out && Array.isArray(out.items) ? out.items : []);
+        arr.forEach(o => { if (!o || !o.name) return; const it = {id:'i' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), name:String(o.name).slice(0,80), room:r.name, qty:Math.max(1, parseInt(o.qty) || 1), low:Number(o.low) || 0, high:Number(o.high) || 0, cond:['good','fair','poor'].includes(o.cond) ? o.cond : 'fair', flag:['review','papers','removal'].includes(o.flag) ? o.flag : null, note:String(o.note || '').slice(0,140), src:'ai'}; if (it.high < it.low) [it.low, it.high] = [it.high, it.low]; it.pile = autoPile(it); found.push(it); });
+      }
+    }
+    S.items = S.items.filter(i => i.src !== 'example' && i.src !== 'ai').concat(found);
+    S.demo = S.demo && false;
+    AI.msg = found.length ? 'Found ' + found.length + ' items in ' + rooms.length + ' rooms. Review the piles below.' : 'No items were recognized. Try clearer, wider photos.';
+  } catch(err) {
+    AI.msg = err && err.code === 'rate_limited' ? 'Too many requests right now. Wait a minute and try again.' : err && err.code === 'not_granted' ? 'AI access wasn’t granted, so items can only be added by hand.' : 'The AI couldn’t finish (' + esc(err && (err.message || err.code) || 'error') + '). Try again or add items by hand.';
+    if (err && err.code === 'not_granted') AI.sample = null;
+  }
+  AI.busy = false; save(); render();
+}
+async function aiSummary(){
+  if (!AI.sample || AI.busy) return;
+  AI.busy = true; render();
+  const P = computePlan(); const e = S.estate;
+  const data = { home: (e.whose ? e.whose + "'s house" : 'the house') + (e.address ? ' at ' + e.address : ''), monthly_carrying_cost: Math.round(carrying().monthly),
+    piles: Object.fromEntries(PILES.map(p => [p.label, {items: P.piles[p.id].items.map(i => i.name), est_value: Math.round(P.piles[p.id].gross)}])),
+    expected_net: Math.round(P.total), estate_sale_only_net: Math.round(P.estateOnly), weeks_to_empty: P.weeks,
+    family_claims: S.items.filter(i => assignee(i)).map(i => i.name + ' -> ' + assignee(i)), open_conflicts: conflicts().map(i => i.name) };
+  try {
+    const r = await AI.sample('Write a short, warm, plain-English message (120 to 170 words) that an executor can text to their siblings explaining the plan for clearing their late parent\'s house. Mention the expected net, how it compares with doing one estate sale, the order of work, the timeline, and anything they still need to decide. No headings, no bullet symbols, no emoji. Data:\n' + JSON.stringify(data), {modelTier:'quick'});
+    S.aiSummary = (r && r.text || '').trim();
+  } catch(err) { toast(err && err.code === 'rate_limited' ? 'Too many requests. Try again in a minute.' : 'Couldn’t write the summary. Try again.'); if (err && err.code === 'not_granted') AI.sample = null; }
+  AI.busy = false; save(); render();
+}
+
+/* ---------- Photos ---------- */
+function shrink(file){
+  return new Promise((res, rej) => {
+    const rd = new FileReader();
+    rd.onload = () => { const img = new Image(); img.onload = () => { const m = 1024, sc = Math.min(1, m / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.8)); }; img.onerror = rej; img.src = rd.result; };
+    rd.onerror = rej; rd.readAsDataURL(file);
+  });
+}
+
+/* ---------- Modal ---------- */
+function confirmBox(title, text, okLabel, onOk){
+  $('modalRoot').innerHTML = '<div class="modal-back" data-act="closeModal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle" onclick="event.stopPropagation()"><h2 id="mTitle">' + title + '</h2><p class="muted">' + text + '</p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="closeModal">Cancel</button><button class="btn primary" id="mOk">' + okLabel + '</button></div></div></div>';
+  $('mOk').onclick = () => { $('modalRoot').innerHTML = ''; onOk(); };
+  $('mOk').focus();
+}
+
+/* ---------- Actions ---------- */
+const ACT = {
+  go: el => { S.step = Number(el.dataset.i); save(); render(); window.scrollTo({top:0}); },
+  resetDemo: () => confirmBox('Load the example house?', 'This replaces everything you’ve entered with the Henderson example.', 'Load example', () => { S = demoState(); AI.msg = ''; save(); render(); }),
+  askBlank: () => confirmBox('Start a blank estate?', 'This clears the example and anything you’ve entered on this device.', 'Start blank', () => { S = blankState(); AI.msg = ''; save(); render(); }),
+  closeModal: () => { $('modalRoot').innerHTML = ''; },
+  rmFam: el => { const n = el.dataset.n; S.family = S.family.filter(x => x !== n); Object.keys(S.claims).forEach(k => S.claims[k] = S.claims[k].filter(x => x !== n)); Object.keys(S.resolved).forEach(k => { if (S.resolved[k] === n) delete S.resolved[k]; }); if (S.viewingAs === n) S.viewingAs = 'You'; save(); render(); },
+  clearRoom: el => { const r = S.rooms.find(x => x.id === el.dataset.room); r.photos.forEach(id => delete S.photos[id]); r.photos = []; save(); render(); },
+  filter: el => { S.filter = el.dataset.f === S.filter ? 'all' : el.dataset.f; render(); },
+  loadExampleItems: () => { S.items = demoItems(); save(); render(); },
+  rmItem: el => { S.items = S.items.filter(i => i.id !== el.dataset.id); delete S.claims[el.dataset.id]; delete S.resolved[el.dataset.id]; save(); render(); },
+  runAI: () => runAI(),
+  viewAs: el => { S.viewingAs = el.dataset.n; save(); render(); },
+  claim: el => { const id = el.dataset.id, me = S.viewingAs; const c = S.claims[id] || []; S.claims[id] = c.includes(me) ? c.filter(x => x !== me) : c.concat(me); if (S.resolved[id] && !S.claims[id].includes(S.resolved[id])) delete S.resolved[id]; save(); render(); },
+  resolve: el => { const id = el.dataset.id, n = el.dataset.n; if (n) S.resolved[id] = n; else { S.claims[id] = []; delete S.resolved[id]; } save(); render(); toast(n ? 'Going to ' + n : 'It will be sold and the money split'); },
+  unlock: () => confirmBox('Pay ' + money(ASSUME.planFee) + ' to get quotes?', 'In the real app this is a one-time card payment, often reimbursable from estate funds. In this prototype nothing is charged.', 'Pay and get quotes', () => { S.planUnlocked = true; save(); render(); }),
+  aiSummary: () => aiSummary(),
+  copyAI: () => copy(S.aiSummary),
+  requestQuotes: () => { S.quotes = true; const P = computePlan(); channels().forEach(ch => { if (!S.chosen[ch]) { const best = VENDORS[ch].slice().sort((a,b) => vendorTerms(ch,b,P).net - vendorTerms(ch,a,P).net)[0]; S.chosen[ch] = best.id; } }); save(); render(); toast(channels().length * 3 + ' quotes received. Best value is pre-selected.'); },
+  coord: () => { S.coordinator = !S.coordinator; save(); render(); },
+  book: () => { S.booked = true; S.events = []; S.evIndex = 0; S.approvals = {}; S.schedule.forEach(t => t.status = 'scheduled'); save(); render(); toast('Vendors booked'); },
+  unbook: () => { S.booked = false; S.events = []; S.evIndex = 0; S.closed = false; save(); render(); },
+  nextEvent: () => {
+    if (S.evIndex >= S.events.length) return;
+    const e = S.events[S.evIndex]; S.evIndex++;
+    const t = S.schedule[e.task];
+    if (!e.approval) { if (e.last) t.status = 'done'; else t.status = 'active'; } else t.status = 'active';
+    S.schedule.forEach((x,i) => { if (i < e.task && x.status !== 'done') x.status = 'done'; });
+    save(); render();
+  },
+  approve: el => { S.approvals[el.dataset.id] = el.dataset.v; save(); render(); },
+  copyReport: () => copy($('report').textContent),
+  close: () => { S.closed = true; S.schedule.forEach(t => t.status = 'done'); S.evIndex = S.events.length; save(); render(); toast('Clear-out closed'); },
+  rate: el => { S.ratings[el.dataset.id] = Number(el.dataset.n); save(); render(); }
+};
+async function copy(text){ try { await navigator.clipboard.writeText(text); toast('Copied'); } catch(e) { toast('Copy isn’t allowed here. Select the text and copy it.'); } }
+
+let lastFocusId = null;
+document.addEventListener('focusin', e => { lastFocusId = e.target && e.target.id || null; });
+function rerenderKeepFocus(){ setTimeout(() => { const id = lastFocusId; render(); const f = id && $(id); if (f) { f.focus(); if (f.select && f.type === 'number') {} } }, 0); }
+document.addEventListener('click', e => { const a = e.target.closest('[data-act]'); if (a && ACT[a.dataset.act]) { e.preventDefault(); ACT[a.dataset.act](a, e); } });
+document.addEventListener('input', e => { const el = e.target; if (el.dataset.bind) { setPath(el.dataset.bind, el.dataset.num ? (Number(el.value) || 0) : el.value); S.demo = false; save(); renderHeader(); } });
+document.addEventListener('change', async e => {
+  const el = e.target;
+  if (el.dataset.bind) { rerenderKeepFocus(); return; }
+  const ch = el.dataset.ch; if (!ch) return;
+  if (ch === 'photos') {
+    const r = S.rooms.find(x => x.id === el.dataset.room); const files = Array.from(el.files || []).slice(0, 12);
+    for (const f of files) { try { const u = await shrink(f); const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); S.photos[id] = u; r.photos.push(id); } catch(err) {} }
+    r.demoCount = 0; S.demo = false; save(); render(); toast(files.length + ' photo' + (files.length === 1 ? '' : 's') + ' added to ' + r.name);
+  }
+  if (ch === 'pile') { const it = S.items.find(i => i.id === el.dataset.id); it.pile = el.value; save(); render(); }
+  if (ch === 'choose') { S.chosen[el.dataset.c] = el.value; if (!S.booked) S.schedule = null; save(); render(); }
+  if (ch === 'sdate') { S.schedule[Number(el.dataset.i)].date = el.value; save(); render(); }
+  if (ch === 'actual') { S.actuals[el.dataset.c] = Number(el.value) || 0; save(); rerenderKeepFocus(); }
+});
+document.addEventListener('submit', e => {
+  const f = e.target.dataset.form; if (!f) return; e.preventDefault();
+  if (f === 'addFam') { const n = $('famName').value.trim(); if (n && !S.family.includes(n)) { S.family.push(n); save(); render(); toast('Invite ready for ' + n); } }
+  if (f === 'addRoom') { const n = $('roomName').value.trim(); if (n) { S.rooms.push({id:'r' + Date.now().toString(36), name:n, photos:[], demoCount:0}); save(); render(); } }
+  if (f === 'addItem') { const name = $('ai-name').value.trim(); if (!name) return; const it = {id:'m' + Date.now().toString(36), name, room:$('ai-room').value, qty:1, low:Number($('ai-low').value) || 0, high:Number($('ai-high').value) || 0, cond:'fair', flag:null, note:'', src:'manual'}; if (it.high < it.low) [it.low, it.high] = [it.high, it.low]; it.pile = autoPile(it); S.items.push(it); save(); render(); toast('Added to ' + PL[it.pile].label); }
+});
+
+/* ---------- Boot ---------- */
+S = load();
+render();
+(async () => {
+  try { if (window.claude && window.claude.use) { const s = await window.claude.use('sample'); if (s) { AI.sample = s; render(); } } } catch(e) {}
+})();
+</script>
+</body>
+</html>
